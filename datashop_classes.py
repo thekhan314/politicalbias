@@ -22,8 +22,7 @@ from sklearn.feature_extraction import text
 from sklearn.model_selection import cross_validate
 from sklearn.metrics import make_scorer
  
-from keras.models import Sequential
-from keras.layers import Dense
+
 
 class TopicModel:
     ''' Fits and evaluates LDA or NMF topic model. 
@@ -33,12 +32,13 @@ class TopicModel:
         align with existing labels. 
 
         Arguments:
+        dataframe -- Holding the text and any labels. Data will be appended
         text_col -- (str) name of the column containing text corpus
         labels_col -- (str) name of column with the labels 
         model_type -- (str) 'lda' or 'nmf'
         n_topics -- (int) the number of model components to create
         stop_words -- (str or list) the stop words to exclude
-        dataframe -- (pandas dataframe) Guess. 
+        
 
         Methods:
         Upon initialization, the first three methods are called in
@@ -79,12 +79,12 @@ class TopicModel:
  
     def __init__(
         self,
+        dataframe,
         text_col,
-        labels_col,
-        model_type = None ,
-        n_topics =None, 
-        stop_words= None,
-        dataframe = None,
+        labels_col = None,
+        model_type = 'lda' ,
+        n_topics =7, 
+        stop_words= 'english',
         description = None,
         ):
  
@@ -94,14 +94,16 @@ class TopicModel:
         self.text_col = text_col
         self.labels_col = labels_col
         self.model_type = model_type
- 
-        self.map_topics()
-        self.report_row = {
-            'Description':description,
-            'Model Type':self.model_type,
-            'Stop Words':self.stop_words,
-            'Accuracy':self.acc_score,
-        }
+        self.fit_mod()
+        
+        if self.labels_col:
+            self.map_topics()
+            self.report_row = {
+                'Description':description,
+                'Model Type':self.model_type,
+                'Stop Words':self.stop_words,
+                'Accuracy':self.acc_score,
+            }
 
     
     def fit_mod(self):
@@ -130,7 +132,7 @@ class TopicModel:
         self.data.loc[:,'mod_number'] = self.topic_matrix.argmax(axis=1)
  
     def mod_reporting(self):
-        self.fit_mod()
+        
         self.mod_nums = list(self.data['mod_number'].value_counts().index)
  
         self.mod_series = {}
