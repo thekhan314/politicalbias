@@ -5,6 +5,7 @@ __pycache__/
 .vscode/
 data/
 git_script.py
+Terminal.ipynb
 
 # C extensions
 *.so
