@@ -1,3 +1,4 @@
+
 import pandas as pd
 import numpy as np
 import random
@@ -84,6 +85,7 @@ class TopicModel:
         labels_col = None,
         model_type = 'lda' ,
         n_topics =7, 
+        desparsify = False,
         stop_words= 'english',
         description = None,
         ):
@@ -92,6 +94,7 @@ class TopicModel:
         self.n_topics = n_topics
         self.stop_words = stop_words
         self.text_col = text_col
+        self.desparsify = desparsify
         self.labels_col = labels_col
         self.model_type = model_type
         self.fit_mod()
@@ -125,11 +128,18 @@ class TopicModel:
             raise Exception('must specify model type as lda or nmf')
  
         self.vectors = self.vect_object.fit_transform(self.data[self.text_col])
+        
+
         self.mod_object.fit(self.vectors)
  
     
         self.topic_matrix = self.mod_object.transform(self.vectors)
         self.data.loc[:,'mod_number'] = self.topic_matrix.argmax(axis=1)
+
+        if self.desparsify == True:
+            self.vector_df = pd.DataFrame(self.vectors.todense(),columns=self.vect_object.get_feature_names())
+            self.vector_df = pd.concat([self.data,self.vector_df])
+
  
     def mod_reporting(self):
         
