@@ -22,8 +22,76 @@ from sklearn.decomposition import NMF
 from sklearn.feature_extraction import text
 from sklearn.model_selection import cross_validate
 from sklearn.metrics import make_scorer
- 
 
+stemmer = PorterStemmer()
+
+def word_counts(
+    df_main,
+    col, 
+    stopwords='english',
+    tokenizer = None,
+    show_chart = True, 
+    cap = 30):
+
+    stemmer = PorterStemmer()
+
+    countvec = CountVectorizer(
+        stop_words=stopwords,
+        tokenizer = tokenizer,
+        vocabulary = vocab
+        )
+    stemmer = PorterStemmer()
+
+    df_wordcounts= countvec.fit_transform(df_main[col])
+
+    words = countvec.get_feature_names()
+    sums = df_wordcounts.toarray().sum(axis=0)
+    count_dict = dict(zip(words,sums))
+
+    count_series = pd.Series(count_dict)
+    count_series.sort_values(ascending = False,inplace=True)
+
+    if show_chart == True:
+        plot_wordcounts(count_series)
+
+    return count_series
+
+def plot_wordcounts(series,cap = None):
+
+    if not cap:
+        cap = 30
+    
+    top_30 = series.head(cap)
+
+    fig,ax = plt.subplots(figsize=(30,20))
+
+    ax.tick_params(
+        axis='x', 
+        labelrotation=35,
+        length=10,
+        labelsize= 26
+        )
+
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+    ax.grid(False)
+
+    ax.bar(list(top_30.index),top_30)
+
+    fig.tight_layout()
+
+    fig.show()
+
+def compare_vocabs(seta,setb):
+    left_words = set(seta.index)
+    right_words = set(setb.index)
+
+    left_notin_right = list(left_words - right_words)
+    sr_right_notin_left = seta[left_notin_right]
+    sr_right_notin_left.sort_values(ascending=False,inplace=True)
+    plot_wordcounts(sr_right_notin_left)
 
 class TopicModel:
     ''' Fits and evaluates LDA or NMF topic model. 
@@ -77,6 +145,7 @@ class TopicModel:
 
     rand_state = 42
     import math
+    
  
     def __init__(
         self,
@@ -134,11 +203,11 @@ class TopicModel:
  
     
         self.topic_matrix = self.mod_object.transform(self.vectors)
-        self.data.loc[:,'mod_number'] = self.topic_matrix.argmax(axis=1)
+        self.data['mod_number'] = self.topic_matrix.argmax(axis=1)
 
         if self.desparsify == True:
             self.vector_df = pd.DataFrame(self.vectors.todense(),columns=self.vect_object.get_feature_names())
-            self.vector_df = pd.concat([self.data,self.vector_df])
+            self.data = pd.concat([self.data,self.vector_df],axis=1)
 
  
     def mod_reporting(self):
@@ -298,8 +367,8 @@ class Batch():
             self.pipeline,self.X,self.y,scoring=self.scoring,cv=6)
         
         self.row_dict ={
-            'Model':type(self.pipeline[1]).__name__,
-            'Vectorizer':type(self.pipeline[0]).__name__,
+            'Model':type(self.pipeline[0]).__name__,
+            #'Vectorizer':type(self.pipeline[0]).__name__,
             'accuracy':self.class_dict['test_accuracy'].mean(),
             'f1_score':self.class_dict['test_f1_score'].mean()
         }
