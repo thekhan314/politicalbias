@@ -9,7 +9,12 @@ import matplotlib.pyplot as plt
 import textdistance
 import matplotlib as mpl
 
+import nltk
+from nltk import word_tokenize
+from nltk.stem.porter import *
+nltk.download('punkt')
 
+from sklearn.feature_extraction import text as sk_text
 from sklearn.pipeline import Pipeline
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_extraction.text import CountVectorizer
@@ -21,7 +26,14 @@ from sklearn.decomposition import LatentDirichletAllocation
 from sklearn.decomposition import NMF
 from sklearn.feature_extraction import text
 from sklearn.model_selection import cross_validate
+from sklearn.model_selection import cross_val_score
 from sklearn.metrics import make_scorer
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.svm import LinearSVC
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
 
 stemmer = PorterStemmer()
 
@@ -31,9 +43,8 @@ def word_counts(
     stopwords='english',
     tokenizer = None,
     show_chart = True, 
+    vocab = None,
     cap = 30):
-
-    stemmer = PorterStemmer()
 
     countvec = CountVectorizer(
         stop_words=stopwords,
@@ -103,7 +114,7 @@ class TopicModel:
         Arguments:
         dataframe -- Holding the text and any labels. Data will be appended
         text_col -- (str) name of the column containing text corpus
-        labels_col -- (str) name of column with the labels 
+        labels_col -- (str) name of column with the labels to comapre to topics
         model_type -- (str) 'lda' or 'nmf'
         n_topics -- (int) the number of model components to create
         stop_words -- (str or list) the stop words to exclude
@@ -152,28 +163,46 @@ class TopicModel:
         dataframe,
         text_col,
         labels_col = None,
+        tokenizer = None,
+        ngram_range = (1,1),
+        vocabulary = None,
         model_type = 'lda' ,
         n_topics =7, 
         desparsify = False,
         stop_words= 'english',
         description = None,
+        topic_matrix_addback = False
         ):
+        
  
         self.data = dataframe
-        self.n_topics = n_topics
-        self.stop_words = stop_words
+        #self.n_topics = n_topics
+        #self.stop_words = stop_words
         self.text_col = text_col
         self.desparsify = desparsify
+        self.topic_matrix_addback = topic_matrix_addback
         self.labels_col = labels_col
         self.model_type = model_type
-        self.fit_mod()
+
+        self.vect_params = {
+            'stop_words':stop_words,
+            'tokenizer':tokenizer,
+            'vocabulary':vocabulary,
+            'ngram_range':ngram_range
+        }
         
+        self.topic_params = {
+            'n_components':n_topics,
+        }
+
+        self.fit_mod()
+
         if self.labels_col:
             self.map_topics()
             self.report_row = {
                 'Description':description,
                 'Model Type':self.model_type,
-                'Stop Words':self.stop_words,
+                'Stop Words':self.vect_params['stop_words'],
                 'Accuracy':self.acc_score,
             }
 
@@ -181,18 +210,11 @@ class TopicModel:
     def fit_mod(self):
  
         if self.model_type == 'lda':
-            self.vect_object = CountVectorizer(
-                stop_words=self.stop_words,ngram_range=(1,1))
-            self.mod_object = LatentDirichletAllocation(
-                n_components=self.n_topics,
-                random_state=self.rand_state)
+            self.vect_object = CountVectorizer(**self.vect_params)
+            self.mod_object = LatentDirichletAllocation(**self.topic_params)
         elif self.model_type == 'nmf':
-            self.vect_object = TfidfVectorizer(
-                stop_words=self.stop_words,
-                ngram_range=(1,1))
-            self.mod_object = NMF(
-                n_components=self.n_topics,
-                random_state=self.rand_state)
+            self.vect_object = TfidfVectorizer(**self.vect_params)
+            self.mod_object = NMF(**self.topic_params)
         else:
             raise Exception('must specify model type as lda or nmf')
  
@@ -200,7 +222,6 @@ class TopicModel:
         
 
         self.mod_object.fit(self.vectors)
- 
     
         self.topic_matrix = self.mod_object.transform(self.vectors)
         self.data['mod_number'] = self.topic_matrix.argmax(axis=1)
@@ -208,7 +229,11 @@ class TopicModel:
         if self.desparsify == True:
             self.vector_df = pd.DataFrame(self.vectors.todense(),columns=self.vect_object.get_feature_names())
             self.data = pd.concat([self.data,self.vector_df],axis=1)
-
+        
+        if self.topic_matrix_addback == True:
+            self.topic_df = pd.DataFrame(self.topic_matrix)
+            self.topic_df.columns = ['t_' + str(topic) for topic in self.topic_df.columns]
+            self.data = pd.concat([self.data,self.topic_df],axis=1)
  
     def mod_reporting(self):
         
