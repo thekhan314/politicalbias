@@ -104,7 +104,13 @@ def compare_vocabs(seta,setb):
     sr_right_notin_left.sort_values(ascending=False,inplace=True)
     plot_wordcounts(sr_right_notin_left)
 
-class TopicModel:
+def wordcount_matrix(df, text_col
+    stop_words='english',
+    tokenizer=None,
+    vocabulary=None,
+    ngram_range=ngram_range)
+
+class NLP_Factory:
     ''' Fits and evaluates LDA or NMF topic model. 
 
         Streamlines Topic Modeling Workflow by vectorizing the corpus,
@@ -353,7 +359,7 @@ class Refinery():
         self.X = X
         self.y = y
 
-    def ingest(self,pipeline,info = None):
+    def ingest(self,pipeline,info = None, show_report= False):
         self.info = info
         self.pipeline = pipeline
         self.models[self.run_id] = Batch(
